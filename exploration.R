@@ -78,7 +78,9 @@ df_clean <- df_raw |>
     ),
 
     cholera_cases = readr$parse_number(as.character(total_cases)),  # Extract numeric case count
-    cholera_cfr = readr$parse_number(as.character(cfr))
+    cholera_cfr = readr$parse_number(as.character(cfr)),
+    deaths = readr$parse_number(as.character(deaths))
+
   ) |>
 
   # Drop the raw start_date column
@@ -93,6 +95,7 @@ df_clean <- df_raw |>
     start_date = min(start_date),
     cholera_cases = sum(cholera_cases),
     cholera_cfr = sum(cholera_cfr),
+    deaths = sum(deaths),
     .groups = "drop"
   ) |>
 
@@ -233,7 +236,7 @@ df_prepped <- df_clean |>
       TRUE ~ floor(cholera_cases)
     )
   ) |>
-  dplyr$select(iso3, date, event, start_date, cholera_cases, cholera_cfr, prev_date_diff)
+  dplyr$select(iso3, date, event, start_date, cholera_cases, cholera_cfr, deaths, prev_date_diff)
 
 # quick check on how many weeks per country and year in dataset
 df_weeks_per_country <- df_prepped |>
@@ -491,6 +494,22 @@ ggplot2$ggplot(df_3_aggregated, ggplot2$aes(x = year, y = iso3, fill = num_alert
                               labels = function(x) x[x %% 1 == 0]) +
   ggplot2$scale_y_discrete(limits = rev(levels(factor(df_3_aggregated$iso3)))) +
   ggplot2$scale_x_continuous(breaks = unique(df_3_aggregated$year))
+
+### testing out the 3-year rollwing average
+# Create a 3-year rolling average of weekly increases
+df_4 <- df_prepped |>
+  dplyr$group_by(iso3) |>
+  dplyr$mutate(
+    weekly_increase = dplyr$if_else(prev_date_diff <= 28, cholera_cases - dplyr$lag(cholera_cases, 1), 0),
+    rolling_avg = zoo::rollmean(dplyr$if_else(weekly_increase > 0, weekly_increase, 0),
+                                k = 156, fill = NA, align = "right"),
+    alert = weekly_increase >= rolling_avg
+  ) |>
+  dplyr$ungroup()
+# Aggregating the data for CERF allocation windows
+alerts_by_year_and_level <- df_4 |>
+  dplyr$count(iso3, year, alert_level, name = "num_alerts") |>
+  dplyr$filter(alert_level != "none")
 
 ## a time series of cases by country showing the alert levels
 
