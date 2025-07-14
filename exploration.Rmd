@@ -1,9 +1,21 @@
-# Script to analyse the cholera data from WHO
+---
+title: "Cholera Trigger Analysis"
+date: "`r Sys.Date()`"
+output: html_notebook
+---
 
-# by country and checking for common indicators of an uptick in cases
+This document contains analysis used to create an alert system using the WHO bulletins for cholera. It is done by country and checks for common indicators of an uptick in cases.
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 options(scipen = 999)
-# load libraries
+min_cfr <- 0
+min_cases <- 500
+```
 
+
+```{r load-libraries, echo=FALSE}
 box::use(
   readr,
   dplyr,
@@ -13,35 +25,34 @@ box::use(
   stringr,
   zoo,
   ggplot2,
-  gghdx
+  gghdx,
+  gt
 )
 box::use(src/location_codes)
 gghdx$gghdx()
+
+```
+
+### Load Data
+
+There are 3 columns with start of reporting period. It seems these columns are reporting on the same value and if one has a value, the rest are NA.
+
+```{r load-data, echo=FALSE}
 df_raw_link <- "https://raw.githubusercontent.com/CBPFGMS/pfbi-data/refs/heads/main/final_data_for_powerbi_with_kpi.csv"
-
-# read in the data
 df_raw <- readr$read_csv(df_raw_link)
-names(df_raw)
 
-# cerf allocations from HDX
-df_cerf <- readr$read_csv(file.path(Sys.getenv("AA_DATA_DIR"),
-                                    "public", "raw", "glb", "cerf_allocations",
-                                    "250509_CERF cholera allocations(Data).csv"))
-#cerf_cholera <- df_cerf |>
-#  dplyr$filter(dplyr$if_any(dplyr$everything(), ~ grepl("cholera", ., ignore.case = TRUE)))
-cerf_cholera <- df_cerf[!(is.na(df_cerf$`Application Code`) | df_cerf$`Application Code` == ""), ]
-cerf_cholera <- cerf_cholera |>
+df_cerf <- readr$read_csv(file.path(Sys.getenv("AA_DATA_DIR"), "public", "raw", "glb", "cerf_allocations", "250509_CERF cholera allocations(Data).csv"))
+cerf_cholera <- df_cerf[!(is.na(df_cerf$`Application Code`) | df_cerf$`Application Code` == ""), ] |>
   dplyr$mutate(countryCode = stringr$str_extract(`Application Code`, "(?<=-)[A-Z]{3}(?=-)"))
-# there are 3 columns with start of reporting period
-# checking if the columns with `Start of reporting period` are the same
-#table(df_raw$`Start of reporting period` == df_raw$`Start of reporting
-#period`)
+df_raw |> 
+  head(5) |>
+  gt$gt()
 
-#table(df_raw$`Start of reporting period` == df_raw$`Start of
-#reporting period`)
+```
 
-# it seems these columns are reporting on the same value and if one has a value, the rest are NA.
+### Clean and Prepare Data
 
+```{r clean-data, echo=FALSE}
 df_clean <- df_raw |>
   # Clean column names to snake_case using janitor
   janitor$clean_names() |>
@@ -76,7 +87,9 @@ df_clean <- df_raw |>
     ),
 
     cholera_cases = readr$parse_number(as.character(total_cases)),  # Extract numeric case count
-    cholera_cfr = readr$parse_number(as.character(cfr))
+    cholera_cfr = readr$parse_number(as.character(cfr)),
+    deaths = readr$parse_number(as.character(deaths))
+
   ) |>
 
   # Drop the raw start_date column
@@ -91,6 +104,7 @@ df_clean <- df_raw |>
     start_date = min(start_date),
     cholera_cases = sum(cholera_cases),
     cholera_cfr = sum(cholera_cfr),
+    deaths = sum(deaths),
     .groups = "drop"
   ) |>
 
@@ -109,8 +123,15 @@ df_clean <- df_raw |>
 
   # Remove grouping
   dplyr$ungroup()
+df_clean |>
+  head(5) |>
+  gt$gt()
+```
 
-## First, check if values tend to be increasing (cumulative) for each country
+First, checking if values tend to be increasing (cumulative) for each country
+Most of the values are greater than or equal to the one prior to it. (lowest being close to 90%), giving a strong indication of cumulative number of cases.
+
+```{r increase-check, echo=FALSE}
 df_rising_check <- df_clean |>
   dplyr$group_by(iso3) |>
   dplyr$arrange(iso3, date) |>
@@ -118,27 +139,26 @@ df_rising_check <- df_clean |>
     rising_cases = cholera_cases >= dplyr$lag(cholera_cases, 1, default = NA),
   ) |>
   dplyr$summarise(mean(rising_cases, na.rm = TRUE))
-head(df_rising_check)
+df_rising_check |>
+  head(5) |>
+  gt$gt()
+```
 
-# most of the values are greater than or equal to the one prior to it. (lowest being close to 90%)
-# giving a strong indication of cumulative number of cases.
 
-## Next, some data cleaning
-# one thing to note is that these weekdays for the date change
-# these dates change depending on the year and weeks can change even within the year.
-# tends to be between Mon-Wed
-# tried to fill in values and seems there is an issue with the definition of weeks
-# Replace values of 1 and
-# those with decimals especially those around other larger values
-# Fill in the missing weeks.
+### Additional Data Cleaning
+
+ - These weekdays for the date change
+ - these dates change depending on the year and weeks can change even within the year
+ - they tend to be between Mon-Wed
+ - tried to fill in values and seems there is an issue with the definition of weeks
+ - Also to replace values of 1 and correcting those with decimals especially those around other larger values
+ - Fill in the missing weeks
+
+```{r additional-clean, echo=FALSE}
 decimal_values <- df_clean |>
   dplyr$filter(cholera_cases %% 1 != 0)
-head(decimal_values)
-
 small_values <- df_clean |>
   dplyr$filter(cholera_cases < 200)
-head(small_values)
-
 df_prepped <- df_clean |>
   dplyr$group_by(iso3) |>
   dplyr$mutate(
@@ -231,9 +251,15 @@ df_prepped <- df_clean |>
       TRUE ~ floor(cholera_cases)
     )
   ) |>
-  dplyr$select(iso3, date, event, start_date, cholera_cases, cholera_cfr, prev_date_diff)
+  dplyr$select(iso3, date, event, start_date, cholera_cases, cholera_cfr, deaths, prev_date_diff)
+df_prepped |>
+  head(5) |>
+  gt$gt()
+```
 
-# quick check on how many weeks per country and year in dataset
+### Weekly Check
+Quick check on how many weeks per country and year in dataset
+```{r weeks-per-country, echo=FALSE}
 df_weeks_per_country <- df_prepped |>
   dplyr$mutate(year = lubridate$year(date)) |>
   dplyr$group_by(iso3, year) |>
@@ -241,28 +267,41 @@ df_weeks_per_country <- df_prepped |>
   dplyr$ungroup() |>
   dplyr$group_by(iso3) |>
   dplyr$summarize(min_weeks = min(weeks), max_weeks = max(weeks), mean_weeks = mean(weeks), .groups = "drop")
-head(df_weeks_per_country)
+df_weeks_per_country |>
+  head(5) |>
+  gt$gt()
+```
 
-# check for countries where dates are less than 7 days apart
+Check for countries where dates are less than 7 days apart
+
+```{r check-date-diffs, echo=FALSE}
 df_prepped |>
   dplyr$filter(prev_date_diff < 7) |>
   dplyr$group_by(iso3) |>
-  dplyr$summarise(count = dplyr$n())
+  dplyr$summarise(count = dplyr$n()) |>
+  head(5) |>
+  gt$gt()
+```
 
-# Global Cholera Trigger Options:
+### Global Cholera Trigger Options:
 
-# 1. Use the DRC trigger:
-#    - Level 3 alert sustained for 3 weeks
-#    - Level 3 defined as either:
-#        a) 4x increase compared to baseline, or
-#        b) Value above the 99th percentile
+1. Use the DRC trigger:
+   - Level 3 alert sustained for 3 weeks
+   - Level 3 defined as either:
+       a) 4x increase compared to baseline, or
+       b) Value above the 99th percentile
 
-# 2. Use the old cumulative methodology (as included by Seth in the Signals system)
+2. Use the old cumulative methodology (as included by Seth in the Signals system)
 
-# 3. Use the Signals methodology:
-#    - Alert when current value is higher than any point in the past 12 months
+3. Use the Signals methodology:
+   - Alert when current value is higher than any point in the past 12 months
+4. Use a 3-year rolling average of weekly increases
 
-# Function to find nearest date match for each country
+Exploration of using the CFR or the Number of Deaths as well.
+
+CERF Allocation Years
+
+```{r find-nearest-country, echo=FALSE}
 find_nearest_country <- function(event_df, allocation_df) {
   event_df |>
     dplyr$group_by(iso3) |>  # Group by country
@@ -288,9 +327,14 @@ allocation_years <- cerf_cholera |>
   dplyr$distinct(countryCode, Year) |>
   dplyr$filter(Year >= lubridate$year(min(df_prepped$date, na.rm = TRUE))) |>
   dplyr$rename(iso3 = countryCode)
-# Methodology 1
-# Assumption: Values stay the same across weeks without data until reported otherwise
-# Also making the data noncumulative
+allocation_years |>
+  head(5) |>
+  gt$gt()
+```
+
+## Methodology 1
+Assumption: Values stay the same across weeks without data until reported otherwise and also making the data noncumulative.
+```{r plot-alerts-by-year-and-level, echo=FALSE, fig.width=10, fig.height=6}
 df_1_all <- df_prepped |>
   dplyr$group_by(iso3) |>
   dplyr$mutate(
@@ -302,9 +346,9 @@ df_1_all <- df_prepped |>
     p99 = quantile(weekly_increase[weekly_increase > 0], probs = 0.99, na.rm = TRUE),
     year = lubridate$year(date),
     alert_level = dplyr$case_when(
-      weekly_increase >= 500 & weekly_increase >= p99 & cholera_cfr > 1 ~ "p99",
-      weekly_increase >= 500 & weekly_increase >= p975 ~ "p975",
-      weekly_increase >= 500 & weekly_increase >= p95 ~ "p95",
+      weekly_increase >= min_cases & weekly_increase >= p99 & cholera_cfr > min_cfr ~ "p99",
+      weekly_increase >= min_cases & weekly_increase >= p975 ~ "p975",
+      weekly_increase >= min_cases & weekly_increase >= p95 ~ "p95",
       TRUE ~ "none"
     )
   )
@@ -344,9 +388,11 @@ ggplot2$ggplot(alerts_by_year_and_level, ggplot2$aes(x = year, y = iso3, fill = 
   ggplot2$scale_y_discrete(limits = rev(levels(factor(alerts_by_year_and_level$iso3)))) +
   ggplot2$scale_x_continuous(breaks = unique(alerts_by_year_and_level$year))
 
+```
 
-# comparing with CERF allocations
-# which alert level correlates with a CERF allocation
+#### Comparison with CERF allocations
+which alert level correlates with a CERF allocation (within 30 days before an alert or 90 days after)
+```{r compare-with-cerf, echo=FALSE}
 df_1_cerf <- find_nearest_country(event_df = df_1, allocation_df = cerf_cholera)
 df_summary <- df_1_cerf |>
   # baseline of 1000
@@ -362,10 +408,14 @@ df_summary |>
     prop_window = n_window / n,
     .groups = "drop"
   )
+df_summary |>
+  head(5) |>
+  gt$gt()
+```
 
-
-# Methodology 2
-# This method should use cumulative values.
+## Methodology 2
+This method should use cumulative values.
+```{r methodology-2, echo=FALSE}
 df_2_all <- df_prepped |>
   dplyr$arrange(iso3, date) |>
   dplyr$mutate(
@@ -411,19 +461,24 @@ ggplot2$ggplot(alerts_by_year, ggplot2$aes(x = year, y = iso3, fill = num_alerts
                               labels = function(x) x[x %% 1 == 0]) +
   ggplot2$scale_y_discrete(limits = rev(levels(factor(alerts_by_year$iso3)))) +
   ggplot2$scale_x_continuous(breaks = unique(alerts_by_year$year))
+```
 
-# comparing with CERF allocations
+Comparison with CERF allocations
+```{r compare-with-cerf-methodology-2, echo=FALSE}
 df_2a_cerf <- find_nearest_country(event_df = df_2_a, allocation_df = cerf_cholera)
 df_2a_cerf |>
   dplyr$summarise(
     n = dplyr$n(),
     n_window = sum(time_diff_days >= -60 & time_diff_days <= 90, na.rm = TRUE),
     prop_window = n_window / n,
-  )
+  ) |>
+  head(5) |>
+  gt$gt()
+```
 
-# Methodology 3
-# remove zeros from weekly increases
-# adding check for no signals for the next 3 months
+## Methodology 3
+Remove zeros from weekly increases and adding check for no signals for the next 3 months
+```{r methodology-3, echo=FALSE}
 df_3_all <- df_prepped |>
   dplyr$group_by(iso3) |>
   dplyr$mutate(
@@ -438,11 +493,11 @@ df_3_all <- df_prepped |>
         current_val <- weekly_increase[date == .x]
         cholera_cfr <- cholera_cfr[date == .x]
         max_val <- max(window_vals, na.rm = TRUE)
-        (current_val == max_val) && (current_val >= 500) && (cholera_cfr > 1)
+        (current_val == max_val) && (current_val >= min_cases) && (cholera_cfr > min_cfr)
       }
     }),
     alert = purrr$map2_lgl(date, seq_along(date), ~{
-      if (!alert_initial[.y] || weekly_increase[.y] < 500) return(FALSE)
+      if (!alert_initial[.y] || weekly_increase[.y] < min_cases) return(FALSE)
 
       last_alert_date <- max(date[alert_initial & date < .x], na.rm = TRUE)
 
@@ -489,9 +544,73 @@ ggplot2$ggplot(df_3_aggregated, ggplot2$aes(x = year, y = iso3, fill = num_alert
                               labels = function(x) x[x %% 1 == 0]) +
   ggplot2$scale_y_discrete(limits = rev(levels(factor(df_3_aggregated$iso3)))) +
   ggplot2$scale_x_continuous(breaks = unique(df_3_aggregated$year))
+```
 
-## a time series of cases by country showing the alert levels
+## Methodology 4
+Create a 3-year rolling average of weekly increases with a minimum of 500 cases. 
 
+```{r rolling-average, echo=FALSE, warning=FALSE}
+df_4 <- df_prepped |>
+  dplyr$group_by(iso3) |>
+  dplyr$group_modify(~ {
+    df <- .x
+    df$weekly_increase <- dplyr$if_else(
+      df$prev_date_diff <= 28,
+      df$cholera_cases - dplyr$lag(df$cholera_cases, 1),
+      0
+    )
+    
+    valid_cases <- dplyr$if_else(df$weekly_increase > 0, df$weekly_increase, NA_real_)
+    n_valid <- sum(!is.na(valid_cases))
+    
+    if (n_valid >= 156) {
+      roll <- zoo$rollmean(valid_cases, k = 156, fill = NA, align = "right")
+      first_val <- roll[which(!is.na(roll))[1]]
+      roll[is.na(roll)] <- first_val
+    } else {
+      roll <- rep(mean(valid_cases, na.rm = TRUE), length(valid_cases))
+    }
+    
+    df$roll_3yr <- roll
+    df$alert <- df$weekly_increase >= df$roll_3yr & df$weekly_increase >= min_cases
+    df$year <- lubridate$year(df$date)
+    df
+  }) |>
+  dplyr$ungroup()
+
+# Aggregating the data for CERF allocation windows
+df_4_aggregated <- df_4 |>
+  dplyr$count(iso3, year, alert, name = "num_alerts") |>
+  dplyr$filter(alert)
+
+ggplot2$ggplot(df_4_aggregated, ggplot2$aes(x = year, y = iso3, fill = num_alerts)) +
+  ggplot2$geom_tile() +
+  ggplot2$geom_tile(
+    data = allocation_years,
+    mapping = ggplot2$aes(x = Year, y = iso3),
+    fill = NA,
+    color = "darkgreen",
+    linewidth = 0.55
+  ) +
+  ggplot2$geom_text(ggplot2$aes(label = num_alerts), color = "black", size = 3) +
+  ggplot2$labs(
+    title = "Number of Alerts by Country and Year",
+    x = "Year",
+    y = "Country",
+    fill = "Number of Alerts",
+    caption = "Green outlines indicate years with a CERF allocation"
+  ) +
+  ggplot2$scale_fill_gradient(low = "white", high = "red", limits = c(0, 12),
+                              breaks = function(x) x[x %% 1 == 0],
+                              labels = function(x) x[x %% 1 == 0]) +
+  ggplot2$scale_y_discrete(limits = rev(levels(factor(df_4_aggregated$iso3)))) +
+  ggplot2$scale_x_continuous(breaks = unique(df_4_aggregated$year))
+```
+
+### Time Series of Cases by Country
+A time series of cases by country showing the alert levels
+
+```{r time-series-alerts, echo=FALSE, eval=FALSE}
 # Combine
 df_joined <- dplyr$full_join(df_1, df_2_a,
                              by = c("iso3", "date"),
@@ -536,10 +655,12 @@ purrr$walk(iso3_levels, ~ {
       gghdx$gghdx()
   })
 })
+```
 
-# final proposal
-# watch alert: highest value in the last 12 months with min of 100 cases
-# warning alert: 99th percentile
+## Final proposal
+    - Watch alert: highest value in the last 12 months
+    - Warning alert: 99th percentile
+```{r final-proposal, echo=FALSE}
 p99_heat <- df_1 |>
   dplyr$filter(alert_level == "p99") |>
   dplyr$mutate(year = lubridate$year(date), method = "Warning Alert: 99th percentile") |>
@@ -572,15 +693,17 @@ ggplot2$ggplot(heat_df, ggplot2$aes(x = year, y = iso3, fill = num_alerts)) +
   ggplot2$scale_y_discrete(limits = rev(levels(factor(heat_df$iso3)))) +
   ggplot2$scale_x_continuous(breaks = unique(heat_df$year)) +
   ggplot2$labs(
-    title = "Number of Alerts per Country and Year (min CFR 1%)",
+    title = paste0("Number of Alerts per Country and Year (min CFR ", min_cfr,"%)"),
     x = "Year",
     y = "Country",
     fill = "Number of Alerts",
     caption = "Green borders = CERF allocation years"
   )
+```
 
-# plotting for a specific country
-# COD, ETH and MOZ
+#### Plotting for a specific country
+COD, ETH and MOZ
+```{r specific-country-plots, echo=FALSE}
 cerf_cholera <- cerf_cholera |>
   dplyr$mutate(final_date = as.Date(dplyr$coalesce(`Date of Initial Contact`,
                                                    `Date of ERC Endorsement`,
@@ -588,7 +711,7 @@ cerf_cholera <- cerf_cholera |>
                                                    `Date of Earliest Project Start`),
                                     format = "%d/%m/%Y"))
 
-iso3_to_plot <- c("CMR", "COD", "ETH", "MOZ", "NGA") #iso3_levels
+iso3_to_plot <- c("CMR", "COD", "ETH", "MOZ", "NGA", "SSD") #iso3_levels
 purrr$walk(iso3_to_plot, ~ {
   cerf_dates <- cerf_cholera$final_date[cerf_cholera$countryCode == .x]
   df_country <- combined_df[combined_df$iso3 == .x, ]
@@ -629,13 +752,18 @@ purrr$walk(iso3_to_plot, ~ {
       )
   })
 })
+```
 
+
+#### Plots with CFR
+
+```{r specific-country-plots-cfr, echo=FALSE}
 purrr$walk(iso3_to_plot, ~ {
   cerf_dates <- cerf_cholera$final_date[cerf_cholera$countryCode == .x]
   df_country <- combined_df[combined_df$iso3 == .x, ]
   max_y <- max(df_country$weekly_increase, na.rm = TRUE)
   scale_factor <- max_y / 8
-  print(paste("Scale Factor: ", ceiling(scale_factor)))
+  # print(paste("Scale Factor: ", ceiling(scale_factor)))
   print({
     ggplot2$ggplot(df_country, ggplot2$aes(x = date, y = weekly_increase)) +
       ggplot2$geom_line(size=0.6, color = "grey40") +
@@ -672,3 +800,6 @@ purrr$walk(iso3_to_plot, ~ {
       )
   })
 })
+```
+
+
