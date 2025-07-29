@@ -30,6 +30,7 @@ box::use(
 )
 box::use(src/location_codes)
 gghdx$gghdx()
+iso3_to_plot <- c("CMR", "COD", "ETH", "MOZ", "NGA", "SSD") #iso3_levels
 
 ```
 
@@ -606,23 +607,75 @@ ggplot2$ggplot(df_4_aggregated, ggplot2$aes(x = year, y = iso3, fill = num_alert
   ggplot2$scale_y_discrete(limits = rev(levels(factor(df_4_aggregated$iso3)))) +
   ggplot2$scale_x_continuous(breaks = unique(df_4_aggregated$year))
 ```
+Timelines for Method 4.
+Challenges with method 4:
+
+ - We do not always have adequate data over 3 years for most countries and it is not always consecutive weeks. There are gaps in the weeks.
+ - The rolling average results in multiple alerts even when not needed.
+
+```{r rolling-average-tl, echo=FALSE, warning=FALSE}
+purrr$walk(iso3_to_plot, ~ {
+  cerf_dates <- cerf_cholera$final_date[cerf_cholera$countryCode == .x]
+  df_country <- df_4[df_4$iso3 == .x, ]
+  print({
+    ggplot2$ggplot(df_country, ggplot2$aes(x = date, y = weekly_increase)) +
+      ggplot2$geom_line(size = 0.6, color = "grey40") +
+      ggplot2$geom_line(ggplot2$aes(y = roll_3yr), color = "green4", size = 0.5, na.rm = TRUE) +
+      ggplot2$geom_point(data = subset(df_country, alert == TRUE),
+                         ggplot2$aes(x = date, y = weekly_increase),
+                         color = "orange", size = 1.8) +
+      ggplot2$geom_vline(xintercept = as.numeric(cerf_dates), color = "green", size = 0.7) +
+      ggplot2$geom_hline(yintercept = 500, color = "darkblue", linetype = "dashed", show.legend = FALSE) +
+      ggplot2$annotate("text", x = as.Date("2025-08-01"), y = 500, label = "500",
+                       color = "darkblue", hjust = 0, vjust = -0.5) +
+      ggplot2$scale_x_date(date_breaks = "6 months", date_labels = "%b %Y") +
+      ggplot2$labs(
+        title = paste("Weekly Cholera Case Increase –", .x),
+        x = "Date",
+        y = "Weekly Increase in Cases",
+        caption ="
+        ● Orange Dot: Rolling average alert
+        ● Green line: CERF allocation date
+        ● Dashed line: 500 cases threshold
+        ● Green curve: 3-year rolling average"
+      ) +
+      gghdx$gghdx() +
+      ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold", size = 14),
+        axis.title = ggplot2$element_text(size = 11),
+        axis.text = ggplot2$element_text(size = 10),
+        plot.caption = ggplot2$element_text(size = 9, hjust = 0),
+        panel.grid.minor = ggplot2$element_blank()
+      )
+  })
+})
+
+```
+
 
 ### Time Series of Cases by Country
 A time series of cases by country showing the alert levels
 
-```{r time-series-alerts, echo=FALSE, eval=FALSE}
-# Combine
+```{r plot-setup, echo=FALSE}
+
 df_joined <- dplyr$full_join(df_1, df_2_a,
                              by = c("iso3", "date"),
                              suffix = c("_df1", "_df2a")) |>
   dplyr$full_join(df_3, by = c("iso3", "date"))
 head(df_joined)
-# Plot
 combined_df <- df_1_all |>
   dplyr$left_join(df_2_all, by = c("iso3", "date")) |>
   dplyr$left_join(df_3_all, by = c("iso3", "date"))
+cerf_cholera <- cerf_cholera |>
+  dplyr$mutate(final_date = as.Date(dplyr$coalesce(`Date of Initial Contact`,
+                                                   `Date of ERC Endorsement`,
+                                                   `First Project Approved`,
+                                                   `Date of Earliest Project Start`),
+                                    format = "%d/%m/%Y"))
 
-iso3_levels <- unique(combined_df$iso3)
+```
+
+```{r time-series-alerts, echo=FALSE, eval=FALSE}
 purrr$walk(iso3_levels, ~ {
   print({
     ggplot2$ggplot(combined_df[combined_df$iso3 == .x, ], ggplot2$aes(x = date, y = weekly_increase)) +
@@ -702,16 +755,9 @@ ggplot2$ggplot(heat_df, ggplot2$aes(x = year, y = iso3, fill = num_alerts)) +
 ```
 
 #### Plotting for a specific country
-COD, ETH and MOZ
-```{r specific-country-plots, echo=FALSE}
-cerf_cholera <- cerf_cholera |>
-  dplyr$mutate(final_date = as.Date(dplyr$coalesce(`Date of Initial Contact`,
-                                                   `Date of ERC Endorsement`,
-                                                   `First Project Approved`,
-                                                   `Date of Earliest Project Start`),
-                                    format = "%d/%m/%Y"))
 
-iso3_to_plot <- c("CMR", "COD", "ETH", "MOZ", "NGA", "SSD") #iso3_levels
+```{r specific-country-plots, echo=FALSE}
+
 purrr$walk(iso3_to_plot, ~ {
   cerf_dates <- cerf_cholera$final_date[cerf_cholera$countryCode == .x]
   df_country <- combined_df[combined_df$iso3 == .x, ]
