@@ -347,7 +347,7 @@ df_1_all <- df_prepped |>
     p99 = quantile(weekly_increase[weekly_increase > 0], probs = 0.99, na.rm = TRUE),
     year = lubridate$year(date),
     alert_level = dplyr$case_when(
-      weekly_increase >= min_cases & weekly_increase >= p99 & cholera_cfr > min_cfr ~ "p99",
+      weekly_increase >= min_cases & weekly_increase >= p99 & cholera_cfr >= min_cfr ~ "p99",
       weekly_increase >= min_cases & weekly_increase >= p975 ~ "p975",
       weekly_increase >= min_cases & weekly_increase >= p95 ~ "p95",
       TRUE ~ "none"
@@ -848,4 +848,20 @@ purrr$walk(iso3_to_plot, ~ {
 })
 ```
 
+```{r save-csv, echo=FALSE, warning=FALSE, message=FALSE}
+last_watch <- df_3 |>
+  dplyr$group_by(iso3) |>
+  dplyr$summarise(last_watch_alert = max(date, na.rm = TRUE), .groups = "drop")
+
+last_warning <- df_1 |>
+  dplyr$filter(alert_level == "p99") |>
+  dplyr$group_by(iso3) |>
+  dplyr$summarise(last_warning_alert = max(date, na.rm = TRUE), .groups = "drop")
+
+last_alerts <- dplyr$full_join(last_watch, last_warning, by = "iso3")
+
+if (!dir.exists("monitoring")) dir.create("monitoring")
+readr$write_csv(last_alerts, file = "monitoring/last_alerts.csv")
+
+```
 
