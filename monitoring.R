@@ -15,7 +15,6 @@ box::use(
   janitor,
   stringr,
   zoo,
-  gt,
   gghdx,
   whisker,
   emayili,
