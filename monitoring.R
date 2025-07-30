@@ -116,6 +116,6 @@ if (watch_alerts_raised || warning_alerts_raised) {
   send_email()
 
 } else {
-  message("No new alerts to notify.")
+  message("No new alerts.")
 }
 
