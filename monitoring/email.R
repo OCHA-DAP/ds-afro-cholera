@@ -96,5 +96,3 @@ send_email <- function(){
   )
   smtp(email)
 }
-
-
