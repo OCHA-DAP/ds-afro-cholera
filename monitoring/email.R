@@ -1,7 +1,7 @@
 send_email <- function(){
   all_alerts <- c(
-    paste0("watch_alert_", iso3_watch_alerts),
-    paste0("warning_alert_", iso3_warning_alerts)
+    if (length(iso3_watch_alerts) > 0) paste0("watch_alert_", iso3_watch_alerts) else character(0),
+    if (length(iso3_warning_alerts) > 0) paste0("warning_alert_", iso3_warning_alerts) else character(0)
   )
   plot_cids <- paste0("cid_plot_", seq_along(all_alerts))
   plot_paths <- file.path("plots", paste0(all_alerts, ".png"))
