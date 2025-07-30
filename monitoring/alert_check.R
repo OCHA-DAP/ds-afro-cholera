@@ -26,7 +26,7 @@ purrr$walk2(merged$iso3, seq_len(nrow(merged)), function(country, i) {
         title = paste("Cholera Cases for", countrycode$countrycode(country, origin = "iso3c", destination = "un.name.en")),
         subtitle = "Watch Alerts based on Increases in Cases",
         x = "Date", y = "Number of Cases",
-        caption = "<span style='color:darkorange;'>● Orange Dot:</span> New Watch Alert<br>● Grey Dot: Previous Watch Alert<br>Labels show the number of cholera cases with the increase in parentheses"
+        caption = "<span style='color:darkorange;'>● Orange Dot: New Watch Alert</span><br>● Grey Dot: Previous Watch Alert<br>Labels show the number of cholera cases with the increase in parentheses"
 
       ) +
       ggplot2$scale_x_date(breaks = breaks_6mo <- seq(from = lubridate$floor_date(min(df_country$date, na.rm = TRUE), "year"),
@@ -104,7 +104,7 @@ purrr$walk2(merged$iso3, seq_len(nrow(merged)), function(country, i) {
         title = paste("Cholera Cases for", countrycode$countrycode(country, origin = "iso3c", destination = "un.name.en")),
         subtitle = "Warning Alerts based on Increases in Cases",
         x = "Date", y = "Number of Cases",
-        caption = "<span style='color:tomato;'>● Red Dot:</span> New Warning Alert<br>● Grey Dot: Previous Warning Alert<br>Labels show the number of cholera cases with the increase in parentheses"
+        caption = "<span style='color:tomato;'>● Red Dot: New Warning Alert</span><br>● Grey Dot: Previous Warning Alert<br>Labels show the number of cholera cases with the increase in parentheses"
       ) +
       ggplot2$scale_x_date(breaks = breaks_6mo <- seq(from = lubridate$floor_date(min(df_country$date, na.rm = TRUE), "year"),
                                                       to = lubridate$ceiling_date(max(df_country$date, na.rm = TRUE), "month"),
