@@ -37,7 +37,7 @@ jobs:
             if (!pkg %in% rownames(installed.packages())) install.packages(pkg)
           }
           pkgs <- c("box", "readr", "dplyr", "purrr", "lubridate", "ggplot2", "janitor",
-                    "stringr", "zoo", "gt", "gghdx", "whisker", "emayili", "countrycode", "AzureStor")
+                    "stringr", "zoo", "gt", "gghdx", "whisker", "emayili", "countrycode", "AzureStor", "arrow")
           lapply(pkgs, install_if_missing)'
         shell: bash
 
