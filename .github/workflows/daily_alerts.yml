@@ -33,12 +33,13 @@ jobs:
 
       - name: Install R packages
         run: |
-          install_if_missing <- function(pkg) {
-            if (!pkg %in% installed.packages()) install.packages(pkg)
+          Rscript -e 'install_if_missing <- function(pkg) {
+            if (!pkg %in% rownames(installed.packages())) install.packages(pkg)
           }
           pkgs <- c("box", "readr", "dplyr", "purrr", "lubridate", "ggplot2", "janitor",
                     "stringr", "zoo", "gt", "gghdx", "whisker", "emayili", "countrycode", "AzureStor")
-          lapply(pkgs, install_if_missing)
+          lapply(pkgs, install_if_missing)'
+        shell: bash
 
       - name: Run alert script
         run: Rscript monitoring.R
