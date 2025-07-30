@@ -9,7 +9,7 @@ get_distribution_list <- function(test_list = FALSE) {
   }
 
   # Connect to blob container
-  blob_endpoint <- AzureStor$storage_endpoint(Sys.getenv("DSCI_AZ_ENDPOINT_DEV"), sas=Sys.getenv("DSCI_AZ_BLOB_DEV_SAS_WRITE"))
+  blob_endpoint <- AzureStor$storage_endpoint(Sys.getenv("DSCI_AZ_ENDPOINT_DEV"), sas=Sys.getenv("DSCI_AZ_BLOB_DEV_SAS"))
   container <- AzureStor$storage_container(blob_endpoint, "projects")
 
   # Download and read the CSV

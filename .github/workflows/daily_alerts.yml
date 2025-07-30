@@ -18,6 +18,7 @@ jobs:
       DSCI_AZ_BLOB_DEV_SAS_WRITE: ${{ secrets.DSCI_AZ_BLOB_DEV_SAS_WRITE }}
       DSCI_AZ_BLOB_PROD_SAS: ${{ secrets.DSCI_AZ_BLOB_PROD_SAS }}
       DSCI_AZ_ENDPOINT_DEV: ${{ secrets.DSCI_AZ_ENDPOINT_DEV }}
+      DSCI_AZ_BLOB_DEV_SAS: ${{ secrets.DSCI_AZ_BLOB_DEV_SAS }}
 
     steps:
       - name: Checkout repository
