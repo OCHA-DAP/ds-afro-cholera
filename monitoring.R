@@ -87,7 +87,7 @@ df_3 <- df_3_all |>
   dplyr$filter(alert)
 
 # -- Load Latest Alerts Log --
-latest_alerts <- readr$read_csv("monitoring/last_alerts.csv")
+latest_alerts <- readr$read_csv("monitoring/last_alerts.csv", show_col_types = FALSE)
 
 # -- Compute New Alerts --
 last_watch <- df_3 |>
