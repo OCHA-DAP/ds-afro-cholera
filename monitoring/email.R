@@ -10,7 +10,7 @@ send_email <- function(){
 
   # Watch section
   watch_blocks <- purrr$map2_chr(
-    # countrycode$countrycode(plot_countries[alert_types == "watch"], origin = "iso3c", destination = "country.name"),
+    # countrycode$countrycode(plot_countries[alert_types == "watch"], origin = "iso3c", destination = "un.name.en"),
     "",
     plot_cids[alert_types == "watch"],
     ~ glue$glue("<h3>{.x}</h3>\n<img src=\"cid:{.y}\" width=\"100%\"/>")
@@ -18,7 +18,7 @@ send_email <- function(){
 
   # Warning section
   warning_blocks <- purrr$map2_chr(
-    # countrycode$countrycode(plot_countries[alert_types == "warning"], origin = "iso3c", destination = "country.name"),
+    # countrycode$countrycode(plot_countries[alert_types == "warning"], origin = "iso3c", destination = "un.name.en"),
     "",
     plot_cids[alert_types == "warning"],
     ~ glue$glue("<h3>{.x}</h3>\n<img src=\"cid:{.y}\" width=\"100%\"/>")
@@ -39,10 +39,11 @@ send_email <- function(){
   watch_alerts_html <- if (length(iso3_watch_alerts) > 0) {
     alert_texts <- purrr$map_chr(iso3_watch_alerts, function(iso3) {
       date_val <- alert_dates_df$new_watch_alert[alert_dates_df$iso3 == iso3]
-      country <- countrycode$countrycode(iso3, origin = "iso3c", destination = "country.name")
+      country <- countrycode$countrycode(iso3, origin = "iso3c", destination = "un.name.en")
       sprintf("%s (%s)", country, format(date_val, "%d %b %Y"))
     })
-    sprintf("<li>Watch Alerts for: %s</li>", paste(alert_texts, collapse = ", "))
+    inner_list <- paste(sprintf("<li>%s</li>", alert_texts), collapse = "\n")
+    outer_block <- sprintf("<li>Watch Alerts for:\n<ul>%s\n</ul>\n</li>", inner_list)
   } else {
     ""
   }
@@ -50,10 +51,11 @@ send_email <- function(){
   warning_alerts_html <- if (length(iso3_warning_alerts) > 0) {
     alert_texts <- purrr$map_chr(iso3_warning_alerts, function(iso3) {
       date_val <- alert_dates_df$new_warning_alert[alert_dates_df$iso3 == iso3]
-      country <- countrycode$countrycode(iso3, origin = "iso3c", destination = "country.name")
+      country <- countrycode$countrycode(iso3, origin = "iso3c", destination = "un.name.en")
       sprintf("%s (%s)", country, format(date_val, "%d %b %Y"))
     })
-    sprintf("<li>Warning Alerts for: %s</li>", paste(alert_texts, collapse = ", "))
+    inner_list <- paste(sprintf("<li>%s</li>", alert_texts), collapse = "\n")
+    outer_block <- sprintf("<li>Warning Alerts for:\n<ul>%s\n</ul>\n</li>", inner_list)
   } else {
     ""
   }
@@ -88,7 +90,8 @@ send_email <- function(){
     #emayili$to("pauline.ndirangu@un.org") |>
     emayili$to(to_list) |>
     emayili$cc(cc_list) |>
-    emayili$subject(paste0("🚨Global Cholera Monitoring: New Alert (", format(Sys.Date(), "%d %B %Y"), ")")) |>
+    #emayili$subject(paste0("🚨Global Cholera Monitoring: New Alert (", format(Sys.Date(), "%d %B %Y"), ")")) |>
+    emayili$subject("Cholera Monitoring: WHO AFRO region") |>
     emayili$html(final_html)
   for (i in seq_along(plot_paths)) {
     email <- email |>

@@ -23,7 +23,7 @@ purrr$walk2(merged$iso3, seq_len(nrow(merged)), function(country, i) {
                          ggplot2$aes(x = date, y = cholera_cases),
                          color = "darkorange", size = 1) +
       ggplot2$labs(
-        title = paste("Cholera Cases for", countrycode$countrycode(country, origin = "iso3c", destination = "country.name")),
+        title = paste("Cholera Cases for", countrycode$countrycode(country, origin = "iso3c", destination = "un.name.en")),
         x = "Date", y = "Number of Cases",
         caption ="● Dark Orange Dot: New Watch alert\n● Mustard Dot: Previous Watch Alert"
       ) +
@@ -90,7 +90,7 @@ purrr$walk2(merged$iso3, seq_len(nrow(merged)), function(country, i) {
                          ggplot2$aes(x = date, y = cholera_cases),
                          color = "darkred", size = 1) +
       ggplot2$labs(
-        title = paste("Cholera Cases for", countrycode$countrycode(country, origin = "iso3c", destination = "country.name")),
+        title = paste("Cholera Cases for", countrycode$countrycode(country, origin = "iso3c", destination = "un.name.en")),
         x = "Date", y = "Number of Cases",
         caption ="● Dark Red Dot: New Warning Alert\n● Red Dot: Previous Warning Alert"
       ) +
