@@ -15,6 +15,8 @@ jobs:
       DSCI_AWS_EMAIL_PASSWORD: ${{ secrets.DSCI_AWS_EMAIL_PASSWORD }}
       DSCI_AWS_EMAIL_HOST: ${{ secrets.DSCI_AWS_EMAIL_HOST }}
       DSCI_AWS_EMAIL_PORT: ${{ secrets.DSCI_AWS_EMAIL_PORT }}
+      DSCI_AZ_BLOB_DEV_SAS_WRITE: ${{ secrets.DSCI_AZ_BLOB_DEV_SAS_WRITE }}
+      DSCI_AZ_BLOB_PROD_SAS: ${{ secrets.DSCI_AZ_BLOB_PROD_SAS }}
 
     steps:
       - name: Checkout repository
@@ -39,3 +41,25 @@ jobs:
 
       - name: Run alert script
         run: Rscript monitoring.R
+
+      - name: Send failure mail
+        if: failure()
+        uses: dawidd6/action-send-mail@v2
+        with:
+          server_address: ${{ secrets.DSCI_AWS_EMAIL_HOST }}
+          server_port: ${{ secrets.DSCI_AWS_EMAIL_PORT || 465 }}
+          username: ${{ secrets.DSCI_AWS_EMAIL_USERNAME }}
+          password: ${{ secrets.DSCI_AWS_EMAIL_PASSWORD }}
+          subject: "Global Cholera Monitoring - Failed"
+          body: GitHub Actions run job for Global Cholera Monitoring failed!
+          to: pauline.ndirangu@un.org
+          from: OCHA Centre for Humanitarian Data <data.science@humdata.org>
+          content_type: text/html
+
+      - name: Commit forecast_updates.csv changes
+        run: |
+          git config --local user.name "GitHub Actions"
+          git config --local user.email "actions@github.com"
+          git add monitoring/last_alerts.csv
+          git commit -m "Update monitoring/last_alerts.csv" || true
+          git push
