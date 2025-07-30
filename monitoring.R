@@ -393,10 +393,10 @@ if (watch_alerts_raised || warning_alerts_raised) {
   # Combine only non-empty sections
   section_parts <- c()
   if (length(watch_blocks) > 0) {
-    section_parts <- c(section_parts, "<h3>Watch Alerts</h3>", paste(watch_blocks, collapse = "\n<hr>\n"))
+    section_parts <- c(section_parts, "<h3>Watch Alerts</h3>", "<p>Watch Alerts signal the highest weekly increase in the past 12 months, with at least 500 reported cases.</p>", paste(watch_blocks, collapse = "\n<hr>\n"))
   }
   if (length(warning_blocks) > 0) {
-    section_parts <- c(section_parts, "<h3>Warning Alerts</h3>", paste(warning_blocks, collapse = "\n<hr>\n"))
+    section_parts <- c(section_parts, "<h3>Warning Alerts</h3>", "<p>Warning Alerts indicate an exceptional increase in cases, surpassing the historical 99th percentile and exceeding 500 cases.</p>", paste(warning_blocks, collapse = "\n<hr>\n"))
   }
 
   plot_section_html <- paste(section_parts, collapse = "\n<hr>\n")
