@@ -279,7 +279,7 @@ purrr$walk2(merged$iso3, seq_len(nrow(merged)), function(country, i) {
     df_country <- df_3_all[df_3_all$iso3 == country, ]
 
     p <- ggplot2$ggplot(df_country, ggplot2$aes(x = date, y = cholera_cases)) +
-      ggplot2$geom_line(color = "grey40", size = 0.3) +
+      ggplot2$geom_line(color = "grey40", linewidth = 0.3) +
       ggplot2$geom_point(data = subset(df_country, alert == TRUE),
                           ggplot2$aes(x = date, y = cholera_cases),
                           color = "#FFDB58", size = 1) +
@@ -294,11 +294,11 @@ purrr$walk2(merged$iso3, seq_len(nrow(merged)), function(country, i) {
       ggplot2$scale_x_date(date_breaks = "1 year", date_labels = "%b %Y") +
       gghdx$gghdx() +
       ggplot2$theme(
-        text = ggplot2$element_text(size = 16.5),
-        plot.title = ggplot2$element_text(size = 22, face = "bold"),
-        axis.title = ggplot2$element_text(size = 18),
-        axis.text = ggplot2$element_text(size = 15),
-        plot.caption = ggplot2$element_text(size = 12, hjust = 1, face = "italic", margin = ggplot2$margin(t = 0.7))
+        text = ggplot2$element_text(size = 20),
+        plot.title = ggplot2$element_text(size = 30, face = "bold"),
+        axis.title = ggplot2$element_text(size = 24),
+        axis.text = ggplot2$element_text(size = 20),
+        plot.caption = ggplot2$element_text(size = 18, hjust = 1, face = "italic", margin = ggplot2$margin(t = 0.7))
       )
 
     # Save plot
@@ -326,7 +326,7 @@ purrr$walk2(merged$iso3, seq_len(nrow(merged)), function(country, i) {
     df_country <- df_1[df_1$iso3 == country, ]
 
     p <- ggplot2$ggplot(df_country, ggplot2$aes(x = date, y = cholera_cases)) +
-      ggplot2$geom_line(color = "grey40", size = 0.3) +
+      ggplot2$geom_line(color = "grey40", linewidth = 0.3) +
       ggplot2$geom_point(data = subset(df_country, alert_level == "p99"),
                           ggplot2$aes(x = date, y = cholera_cases),
                           color = "#FF6961", size = 1) +
@@ -341,11 +341,11 @@ purrr$walk2(merged$iso3, seq_len(nrow(merged)), function(country, i) {
       ggplot2$scale_x_date(date_breaks = "1 year", date_labels = "%b %Y") +
       gghdx$gghdx() +
       ggplot2$theme(
-        text = ggplot2$element_text(size = 16.5),
-        plot.title = ggplot2$element_text(size = 22, face = "bold"),
-        axis.title = ggplot2$element_text(size = 18),
-        axis.text = ggplot2$element_text(size = 15),
-        plot.caption = ggplot2$element_text(size = 12, hjust = 1, face = "italic", margin = ggplot2$margin(t = 0.7))
+        text = ggplot2$element_text(size = 20),
+        plot.title = ggplot2$element_text(size = 30, face = "bold"),
+        axis.title = ggplot2$element_text(size = 24),
+        axis.text = ggplot2$element_text(size = 20),
+        plot.caption = ggplot2$element_text(size = 18, hjust = 1, face = "italic", margin = ggplot2$margin(t = 0.7))
       )
 
     # Save plot
@@ -377,17 +377,17 @@ if (watch_alerts_raised || warning_alerts_raised) {
   alert_types <- ifelse(grepl("^watch_alert_", all_alerts), "watch", "warning")
 
   # Watch section
-  watch_blocks <- purrr::map2_chr(
+  watch_blocks <- purrr$map2_chr(
     countrycode$countrycode(plot_countries[alert_types == "watch"], origin = "iso3c", destination = "country.name"),
     plot_cids[alert_types == "watch"],
-    ~ glue::glue("<h3>{.x}</h3>\n<img src=\"cid:{.y}\" width=\"100%\"/>")
+    ~ glue$glue("<h3>{.x}</h3>\n<img src=\"cid:{.y}\" width=\"100%\"/>")
   )
 
   # Warning section
-  warning_blocks <- purrr::map2_chr(
+  warning_blocks <- purrr$map2_chr(
     countrycode$countrycode(plot_countries[alert_types == "warning"], origin = "iso3c", destination = "country.name"),
     plot_cids[alert_types == "warning"],
-    ~ glue::glue("<h3>{.x}</h3>\n<img src=\"cid:{.y}\" width=\"100%\"/>")
+    ~ glue$glue("<h3>{.x}</h3>\n<img src=\"cid:{.y}\" width=\"100%\"/>")
   )
 
   # Combine only non-empty sections
@@ -436,7 +436,7 @@ if (watch_alerts_raised || warning_alerts_raised) {
   email <- emayili$envelope() |>
     emayili$from(Sys.getenv("DSCI_AWS_EMAIL_ADDRESS")) |>
     emayili$to("pauline.ndirangu@un.org") |>
-    emayili$subject("🚨 New Cholera Alert") |>
+    emayili$subject(paste0("🚨Global Cholera Monitoring: New Alert (", format(Sys.Date(), "%d %B %Y"), ")")) |>
     emayili$html(final_html)
   for (i in seq_along(plot_paths)) {
     email <- email |>
