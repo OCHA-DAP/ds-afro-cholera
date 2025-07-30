@@ -27,10 +27,10 @@ send_email <- function(){
   # Combine only non-empty sections
   section_parts <- c()
   if (length(watch_blocks) > 0) {
-    section_parts <- c(section_parts, "<h3><strong>Watch Alerts</strong></h3> <p>Watch Alerts signal the highest weekly increase in the past 12 months, with at least 500 reported cases.</p>", paste(watch_blocks, collapse = "\n"))
+    section_parts <- c(section_parts, "<h3><strong>Watch Alerts</strong></h3> <p>Watch Alerts signal the highest weekly increase in the past 12 months, with at least 500 new cases.</p>", paste(watch_blocks, collapse = "\n"))
   }
   if (length(warning_blocks) > 0) {
-    section_parts <- c(section_parts, "<h3><strong>Warning Alerts</strong></h3> <p>Warning Alerts indicate an exceptional increase in cases, surpassing the historical 99th percentile and exceeding 500 cases.</p>", paste(warning_blocks, collapse = "\n"))
+    section_parts <- c(section_parts, "<h3><strong>Warning Alerts</strong></h3> <p>Warning Alerts indicate an exceptional increase in cases, surpassing the historical 99th percentile and exceeding 500 new cases.</p>", paste(warning_blocks, collapse = "\n"))
   }
 
   plot_section_html <- paste(section_parts, collapse = "\n<hr>\n")

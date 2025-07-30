@@ -12,6 +12,7 @@ box::use(
   purrr,
   lubridate,
   ggplot2,
+  ggtext,
   janitor,
   stringr,
   zoo,
@@ -20,7 +21,8 @@ box::use(
   emayili,
   countrycode,
   AzureStor,
-  glue
+  glue,
+  scales
 )
 box::use(src/location_codes)
 

@@ -18,23 +18,32 @@ purrr$walk2(merged$iso3, seq_len(nrow(merged)), function(country, i) {
       ggplot2$geom_line(color = "grey40", linewidth = 0.3) +
       ggplot2$geom_point(data = subset(df_country, alert == TRUE),
                          ggplot2$aes(x = date, y = cholera_cases),
-                         color = "#FFDB58", size = 1) +
+                         color = "#939393", size = 1) +
       ggplot2$geom_point(data = subset(df_country, alert == TRUE & date == row$last_watch_alert_new),
                          ggplot2$aes(x = date, y = cholera_cases),
                          color = "darkorange", size = 1) +
       ggplot2$labs(
         title = paste("Cholera Cases for", countrycode$countrycode(country, origin = "iso3c", destination = "un.name.en")),
+        subtitle = "Watch Alerts based on Increases in Cases",
         x = "Date", y = "Number of Cases",
-        caption ="● Dark Orange Dot: New Watch alert\n● Mustard Dot: Previous Watch Alert"
+        caption = "<span style='color:darkorange;'>● Orange Dot:</span> New Watch Alert<br>● Grey Dot: Previous Watch Alert<br>Labels show the number of cholera cases with the increase in parentheses"
+
       ) +
-      ggplot2$scale_x_date(date_breaks = "1 year", date_labels = "%b %Y") +
+      ggplot2$scale_x_date(breaks = breaks_6mo <- seq(from = lubridate$floor_date(min(df_country$date, na.rm = TRUE), "month"),
+                                        to = lubridate$ceiling_date(max(df_country$date, na.rm = TRUE), "month"),
+                                        by = "6 months"),
+                           labels = ifelse(lubridate$month(breaks_6mo) == 1,
+                                           format(breaks_6mo, "%b\n%Y"),
+                                           format(breaks_6mo, "%b\n")),
+                           expand = c(0.01, 0)) +
+      ggplot2$scale_y_continuous(labels = scales$comma) +
       ggplot2$expand_limits(y = max(df_country$cholera_cases, na.rm = TRUE) * 1.1) +
       ggplot2$geom_text(
         data = subset(df_country, alert == TRUE & date == row$last_watch_alert_new),
         ggplot2$aes(
           x = date,
           y = cholera_cases,
-          label = paste0(cholera_cases, " (+", weekly_increase, ")")
+          label = paste0(scales$comma(cholera_cases), " (+", scales$comma(weekly_increase), ")")
         ),
         color = "darkorange",
         size = 6.5,
@@ -42,16 +51,18 @@ purrr$walk2(merged$iso3, seq_len(nrow(merged)), function(country, i) {
       ) +
       gghdx$gghdx() +
       ggplot2$theme(
-        text = ggplot2$element_text(size = 22),
-        plot.title = ggplot2$element_text(size = 36, face = "bold"),
-        axis.title = ggplot2$element_text(size = 28),
-        axis.text = ggplot2$element_text(size = 24),
-        plot.caption = ggplot2$element_text(size = 20, hjust = 1, face = "italic", margin = ggplot2$margin(t = 0.7))
+        text = ggplot2$element_text(size = 20),
+        plot.title = ggplot2$element_text(size = 32, face = "bold"),
+        axis.title = ggplot2$element_text(size = 24),
+        axis.text = ggplot2$element_text(size = 22),
+        plot.caption = ggtext$element_markdown(size = 18, hjust = 1, lineheight = 0.4,
+                                            margin = ggplot2$margin(t = 0.7)),
+        axis.text.x = ggplot2$element_text(lineheight = 0.35)
       )
 
     # Save plot
     plot_path <- file.path("plots", paste0("watch_alert_", country, ".png"))
-    ggplot2$ggsave(plot_path, plot = p, width = 5, height = 2.5, dpi = 300)
+    ggplot2$ggsave(plot_path, plot = p, width = 6, height = 3, dpi = 300)
 
     # Add to alert_dates_df
     alert_dates_df <<- dplyr$bind_rows(alert_dates_df, data.frame(
@@ -85,40 +96,50 @@ purrr$walk2(merged$iso3, seq_len(nrow(merged)), function(country, i) {
       ggplot2$geom_line(color = "grey40", linewidth = 0.3) +
       ggplot2$geom_point(data = subset(df_country, alert_level == "p99"),
                          ggplot2$aes(x = date, y = cholera_cases),
-                         color = "#FF6961", size = 1) +
+                         color = "#939393", size = 1) +
       ggplot2$geom_point(data = subset(df_country, alert_level == "p99" & date == row$last_warning_alert_new),
                          ggplot2$aes(x = date, y = cholera_cases),
-                         color = "darkred", size = 1) +
+                         color = "tomato", size = 1) +
       ggplot2$labs(
         title = paste("Cholera Cases for", countrycode$countrycode(country, origin = "iso3c", destination = "un.name.en")),
+        subtitle = "Warning Alerts based on Increases in Cases",
         x = "Date", y = "Number of Cases",
-        caption ="● Dark Red Dot: New Warning Alert\n● Red Dot: Previous Warning Alert"
+        caption = "<span style='color:tomato;'>● Red Dot:</span> New Warning Alert<br>● Grey Dot: Previous Warning Alert<br>Labels show the number of cholera cases with the increase in parentheses"
       ) +
-      ggplot2$scale_x_date(date_breaks = "1 year", date_labels = "%b %Y") +
+      ggplot2$scale_x_date(breaks = breaks_6mo <- seq(from = lubridate$floor_date(min(df_country$date, na.rm = TRUE), "month"),
+                                                      to = lubridate$ceiling_date(max(df_country$date, na.rm = TRUE), "month"),
+                                                      by = "6 months"),
+                           labels = ifelse(lubridate$month(breaks_6mo) == 1,
+                                           format(breaks_6mo, "%b\n%Y"),
+                                           format(breaks_6mo, "%b\n")),
+                           expand = c(0.01, 0)) +
+      ggplot2$scale_y_continuous(labels = scales$comma) +
       ggplot2$expand_limits(y = max(df_country$cholera_cases, na.rm = TRUE) * 1.1) +
       ggplot2$geom_text(
         data = subset(df_country, alert_level == "p99" & date == row$last_warning_alert_new),
         ggplot2$aes(
           x = date,
           y = cholera_cases,
-          label = paste0(cholera_cases, " (+", weekly_increase, ")")
+          label = paste0(scales$comma(cholera_cases), " (+", scales$comma(weekly_increase), ")")
         ),
-        color = "darkred",
+        color = "tomato",
         size = 6.5,
         vjust = -1
       ) +
       gghdx$gghdx() +
       ggplot2$theme(
-        text = ggplot2$element_text(size = 22),
-        plot.title = ggplot2$element_text(size = 36, face = "bold"),
-        axis.title = ggplot2$element_text(size = 28),
-        axis.text = ggplot2$element_text(size = 24),
-        plot.caption = ggplot2$element_text(size = 20, hjust = 1, face = "italic", margin = ggplot2$margin(t = 0.7))
+        text = ggplot2$element_text(size = 20),
+        plot.title = ggplot2$element_text(size = 32, face = "bold"),
+        axis.title = ggplot2$element_text(size = 24),
+        axis.text = ggplot2$element_text(size = 22),
+        plot.caption = ggtext$element_markdown(size = 18, hjust = 1, lineheight = 0.4,
+                                            margin = ggplot2$margin(t = 0.7)),
+        axis.text.x = ggplot2$element_text(lineheight = 0.35)
       )
 
     # Save plot
     plot_path <- file.path("plots", paste0("warning_alert_", country, ".png"))
-    ggplot2$ggsave(plot_path, plot = p, width = 5, height = 2.5, dpi = 300)
+    ggplot2$ggsave(plot_path, plot = p, width = 6, height = 3, dpi = 300)
 
     # Add to alert_dates_df
     # Check if country already in df then update, else add
