@@ -1,3 +1,9 @@
+alert_dates_df <- data.frame(
+  iso3 = character(),
+  new_watch_alert = as.Date(character()),
+  new_warning_alert = as.Date(character()),
+  stringsAsFactors = FALSE
+)
 iso3_watch_alerts <- c()
 watch_alerts_raised <- FALSE
 purrr$walk2(merged$iso3, seq_len(nrow(merged)), function(country, i) {
@@ -22,6 +28,18 @@ purrr$walk2(merged$iso3, seq_len(nrow(merged)), function(country, i) {
         caption ="● Dark Orange Dot: New Watch alert\n● Mustard Dot: Previous Watch Alert"
       ) +
       ggplot2$scale_x_date(date_breaks = "1 year", date_labels = "%b %Y") +
+      ggplot2$expand_limits(y = max(df_country$cholera_cases, na.rm = TRUE) * 1.1) +
+      ggplot2$geom_text(
+        data = subset(df_country, alert == TRUE & date == row$last_watch_alert_new),
+        ggplot2$aes(
+          x = date,
+          y = cholera_cases,
+          label = paste0(cholera_cases, " (+", weekly_increase, ")")
+        ),
+        color = "darkorange",
+        size = 6.5,
+        vjust = -1
+      ) +
       gghdx$gghdx() +
       ggplot2$theme(
         text = ggplot2$element_text(size = 22),
@@ -34,6 +52,14 @@ purrr$walk2(merged$iso3, seq_len(nrow(merged)), function(country, i) {
     # Save plot
     plot_path <- file.path("plots", paste0("watch_alert_", country, ".png"))
     ggplot2$ggsave(plot_path, plot = p, width = 5, height = 2.5, dpi = 300)
+
+    # Add to alert_dates_df
+    alert_dates_df <<- dplyr$bind_rows(alert_dates_df, data.frame(
+      iso3 = country,
+      new_watch_alert = row$last_watch_alert_new,
+      new_warning_alert = NA,
+      stringsAsFactors = FALSE
+    ))
   }
 })
 if(length(iso3_watch_alerts) > 0){
@@ -69,6 +95,18 @@ purrr$walk2(merged$iso3, seq_len(nrow(merged)), function(country, i) {
         caption ="● Dark Red Dot: New Warning Alert\n● Red Dot: Previous Warning Alert"
       ) +
       ggplot2$scale_x_date(date_breaks = "1 year", date_labels = "%b %Y") +
+      ggplot2$expand_limits(y = max(df_country$cholera_cases, na.rm = TRUE) * 1.1) +
+      ggplot2$geom_text(
+        data = subset(df_country, alert_level == "p99" & date == row$last_warning_alert_new),
+        ggplot2$aes(
+          x = date,
+          y = cholera_cases,
+          label = paste0(cholera_cases, " (+", weekly_increase, ")")
+        ),
+        color = "darkred",
+        size = 6.5,
+        vjust = -1
+      ) +
       gghdx$gghdx() +
       ggplot2$theme(
         text = ggplot2$element_text(size = 22),
@@ -81,6 +119,27 @@ purrr$walk2(merged$iso3, seq_len(nrow(merged)), function(country, i) {
     # Save plot
     plot_path <- file.path("plots", paste0("warning_alert_", country, ".png"))
     ggplot2$ggsave(plot_path, plot = p, width = 5, height = 2.5, dpi = 300)
+
+    # Add to alert_dates_df
+    # Check if country already in df then update, else add
+    if (country %in% alert_dates_df$iso3) {
+      idx <- which(alert_dates_df$iso3 == country)
+      if (length(idx) == 1) {
+        alert_dates_df$new_warning_alert[idx] <<- row$last_warning_alert_new
+      }
+      message("Updated row: ", idx, " with date: ", row$last_warning_alert_new)
+    } else {
+      message("New Warning Entry")
+      alert_dates_df <<- dplyr$bind_rows(
+        alert_dates_df,
+        data.frame(
+          iso3 = country,
+          new_watch_alert = as.Date(NA),
+          new_warning_alert = row$last_warning_alert_new
+        )
+      )
+    }
+
   }
 })
 

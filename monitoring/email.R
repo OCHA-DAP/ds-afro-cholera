@@ -37,13 +37,23 @@ send_email <- function(){
 
   # --- Data to render ---
   watch_alerts_html <- if (length(iso3_watch_alerts) > 0) {
-    sprintf("<li>Watch Alerts for: %s</li>", paste(countrycode$countrycode(iso3_watch_alerts, origin = "iso3c", destination = "country.name"), collapse = ", "))
+    alert_texts <- purrr$map_chr(iso3_watch_alerts, function(iso3) {
+      date_val <- alert_dates_df$new_watch_alert[alert_dates_df$iso3 == iso3]
+      country <- countrycode$countrycode(iso3, origin = "iso3c", destination = "country.name")
+      sprintf("%s (%s)", country, format(date_val, "%d %b %Y"))
+    })
+    sprintf("<li>Watch Alerts for: %s</li>", paste(alert_texts, collapse = ", "))
   } else {
     ""
   }
 
   warning_alerts_html <- if (length(iso3_warning_alerts) > 0) {
-    sprintf("<li>Warning Alerts for: %s</li>", paste(countrycode$countrycode(iso3_warning_alerts, origin = "iso3c", destination = "country.name"), collapse = ", "))
+    alert_texts <- purrr$map_chr(iso3_warning_alerts, function(iso3) {
+      date_val <- alert_dates_df$new_warning_alert[alert_dates_df$iso3 == iso3]
+      country <- countrycode$countrycode(iso3, origin = "iso3c", destination = "country.name")
+      sprintf("%s (%s)", country, format(date_val, "%d %b %Y"))
+    })
+    sprintf("<li>Warning Alerts for: %s</li>", paste(alert_texts, collapse = ", "))
   } else {
     ""
   }
@@ -67,7 +77,7 @@ send_email <- function(){
   final_html <- whisker$whisker.render(base_template, list(content = info_rendered))
 
   # --- Getting the Distribution List ---
-  source("distribution_list.R")
+  source("monitoring/distribution_list.R")
   distribution_list <- get_distribution_list(test_list = TRUE)
   to_list <- distribution_list |> dplyr$filter(info == "to") |> dplyr$pull(email)
   cc_list <- distribution_list |> dplyr$filter(info == "cc") |> dplyr$pull(email)
