@@ -36,8 +36,9 @@ jobs:
           Rscript -e 'install_if_missing <- function(pkg) {
             if (!pkg %in% rownames(installed.packages())) install.packages(pkg)
           }
-          pkgs <- c("box", "readr", "dplyr", "purrr", "lubridate", "ggplot2", "janitor",
-                    "stringr", "zoo", "gt", "gghdx", "whisker", "emayili", "countrycode", "AzureStor", "arrow")
+          pkgs <- c("box", "readr", "dplyr", "purrr", "lubridate", "ggplot2", "janitor", "glue",
+                    "stringr", "zoo", "gt", "gghdx", "whisker", "emayili", "countrycode", "AzureStor",
+                    "arrow", "logger", "memoise", "jsonlite", "sf", "rlang")
           lapply(pkgs, install_if_missing)'
         shell: bash
 
