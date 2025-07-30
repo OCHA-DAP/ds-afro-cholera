@@ -28,7 +28,7 @@ box::use(src/location_codes)
 
 # -- Load and Clean Raw Data --
 df_raw_link <- "https://raw.githubusercontent.com/CBPFGMS/pfbi-data/refs/heads/main/final_data_for_powerbi_with_kpi.csv"
-df_raw <- readr$read_csv(df_raw_link)
+df_raw <- readr$read_csv(df_raw_link, show_col_types = FALSE)
 
 source("monitoring/cleaning.R")
 df_prepped <- data_cleaning(df_raw)
