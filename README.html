@@ -352,11 +352,59 @@ display: none;
 </div>
 
 
-<div id="cholera-alerts" class="section level1">
-<h1>Cholera Alerts</h1>
-<p>Monitoring and detecting cholera outbreaks using WHO data and CERF
-allocation records.</p>
-<hr />
+<div id="global-cholera-monitoring-system" class="section level1">
+<h1>Global Cholera Monitoring System</h1>
+<p>This repository contains an automated cholera monitoring system
+developed by OCHA’s Centre for Humanitarian Data, in support of the
+Global Cholera Strategy. It uses WHO outbreak data and generates alerts
+based on thresholds, producing email notifications.</p>
+<div id="what-it-does" class="section level3">
+<h3>🔍 What It Does</h3>
+<ul>
+<li><p>Parses and processes WHO AFRO cholera bulletin data</p></li>
+<li><p>Compares current data to historical baselines and
+triggers</p></li>
+<li><p>Generates daily alert plots for countries crossing
+thresholds</p></li>
+<li><p>Sends email alerts with embedded graphics and summary
+commentary</p></li>
+</ul>
+</div>
+<div id="repository-structure" class="section level3">
+<h3>📦 Repository Structure</h3>
+<ul>
+<li><code>monitoring/</code>: Email templates</li>
+<li><code>exploration.Rmd</code>: Code to produce exploratory analysis
+and visualizations</li>
+<li><code>exploration.html</code>: Rendered HTML report from the
+exploratory analysis</li>
+<li><code>README.md</code>: Documentation</li>
+</ul>
+</div>
+<div id="running-it" class="section level3">
+<h3>🚀 Running It</h3>
+<div id="automated-via-github-actions" class="section level4">
+<h4>Automated via GitHub Actions</h4>
+<p>This project includes a workflow (.github/workflows/daily_alerts.yml)
+that runs the alert system every day at 06:00 UTC. See the GitHub
+Actions section for setup.</p>
+</div>
+</div>
+<div id="dependencies" class="section level3">
+<h3>🧰 Dependencies</h3>
+<p>This project uses the {box} module system and depends on the
+following packages: - box, dplyr, purrr, ggplot2, lubridate, stringr,
+janitor, readr, zoo, gghdx, countrycode, whisker, emayili, gt</p>
+</div>
+<div id="contact" class="section level3">
+<h3>📬 Contact</h3>
+<p>Developed by the Centre for Humanitarian Data. Questions or
+suggestions? Contact: <a href="mailto:pauline.ndirangu@un.org" class="email">pauline.ndirangu@un.org</a></p>
+</div>
+<div id="license" class="section level3">
+<h3>📝 License</h3>
+<p>This project is open-source under the MIT License.</p>
+</div>
 </div>
 
 

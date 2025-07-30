@@ -1,0 +1,66 @@
+name: Daily Cholera Alert
+
+on:
+  schedule:
+    - cron: '0 6 * * *'  # Runs daily at 06:00 UTC
+  workflow_dispatch:     # Allows manual triggering
+
+jobs:
+  run-alert:
+    runs-on: ubuntu-latest
+
+    env:
+      DSCI_AWS_EMAIL_ADDRESS: ${{ secrets.DSCI_AWS_EMAIL_ADDRESS }}
+      DSCI_AWS_EMAIL_USERNAME: ${{ secrets.DSCI_AWS_EMAIL_USERNAME }}
+      DSCI_AWS_EMAIL_PASSWORD: ${{ secrets.DSCI_AWS_EMAIL_PASSWORD }}
+      DSCI_AWS_EMAIL_HOST: ${{ secrets.DSCI_AWS_EMAIL_HOST }}
+      DSCI_AWS_EMAIL_PORT: ${{ secrets.DSCI_AWS_EMAIL_PORT }}
+      DSCI_AZ_BLOB_DEV_SAS_WRITE: ${{ secrets.DSCI_AZ_BLOB_DEV_SAS_WRITE }}
+      DSCI_AZ_BLOB_PROD_SAS: ${{ secrets.DSCI_AZ_BLOB_PROD_SAS }}
+      DSCI_AZ_ENDPOINT_DEV: ${{ secrets.DSCI_AZ_ENDPOINT_DEV }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev libharfbuzz-dev libfribidi-dev libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev
+
+      - name: Install R packages
+        run: |
+          install_if_missing <- function(pkg) {
+            if (!pkg %in% installed.packages()) install.packages(pkg)
+          }
+          pkgs <- c("box", "readr", "dplyr", "purrr", "lubridate", "ggplot2", "janitor",
+                    "stringr", "zoo", "gt", "gghdx", "whisker", "emayili", "countrycode", "AzureStor")
+          lapply(pkgs, install_if_missing)
+
+      - name: Run alert script
+        run: Rscript monitoring.R
+
+      - name: Send failure mail
+        if: failure()
+        uses: dawidd6/action-send-mail@v2
+        with:
+          server_address: ${{ secrets.DSCI_AWS_EMAIL_HOST }}
+          server_port: ${{ secrets.DSCI_AWS_EMAIL_PORT || 465 }}
+          username: ${{ secrets.DSCI_AWS_EMAIL_USERNAME }}
+          password: ${{ secrets.DSCI_AWS_EMAIL_PASSWORD }}
+          subject: "Global Cholera Monitoring - Failed"
+          body: GitHub Actions run job for Global Cholera Monitoring failed!
+          to: pauline.ndirangu@un.org
+          from: OCHA Centre for Humanitarian Data <data.science@humdata.org>
+          content_type: text/html
+
+      - name: Commit forecast_updates.csv changes
+        run: |
+          git config --local user.name "GitHub Actions"
+          git config --local user.email "actions@github.com"
+          git add monitoring/last_alerts.csv
+          git commit -m "Update monitoring/last_alerts.csv" || true
+          git push
