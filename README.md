@@ -23,7 +23,7 @@ This project includes a workflow (.github/workflows/daily_alerts.yml) that runs 
 
 ### 🧰 Dependencies
 This project uses the {box} module system and depends on the following packages:
- - box, dplyr, purrr, ggplot2, lubridate, stringr, janitor, readr, zoo, gghdx, countrycode, whisker, emayili, gt
+ - box, dplyr, purrr, ggplot2, lubridate, stringr, janitor, readr, zoo, gghdx, countrycode, whisker, emayili, AzureStor, glue
 
 ### 📬 Contact
 
