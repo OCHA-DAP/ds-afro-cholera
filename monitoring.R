@@ -70,7 +70,7 @@ df_3_all <- df_prepped |>
         current_val <- weekly_increase[date == .x]
         cholera_cfr <- cholera_cfr[date == .x]
         max_val <- max(window_vals, na.rm = TRUE)
-        (current_val == max_val) && (current_val >= min_cases) && (cholera_cfr > min_cfr)
+        (current_val == max_val) && (current_val >= min_cases) && (cholera_cfr >= min_cfr)
       }
     }),
     alert = purrr$map2_lgl(date, seq_along(date), ~{
@@ -109,7 +109,7 @@ merged <- dplyr$left_join(new_alerts, latest_alerts, by = "iso3", suffix = c("_n
 source("monitoring/alert_check.R")
 
 # -- Save Updated Alerts Log --
-#readr$write_csv(new_alerts, file = "monitoring/last_alerts.csv")
+readr$write_csv(new_alerts, file = "monitoring/last_alerts.csv")
 
 # -- Email Notification --
 if (watch_alerts_raised || warning_alerts_raised) {
