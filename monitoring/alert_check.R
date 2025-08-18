@@ -31,13 +31,14 @@ purrr$walk2(merged$iso3, seq_len(nrow(merged)), function(country, i) {
       ) +
       ggplot2$scale_x_date(breaks = breaks_6mo <- seq(from = lubridate$floor_date(min(df_country$date, na.rm = TRUE), "year"),
                                         to = lubridate$ceiling_date(max(df_country$date, na.rm = TRUE), "month"),
-                                        by = "6 months"),
-                           labels = ifelse(lubridate$month(breaks_6mo) == 1,
+                                        by = paste0(ifelse(ceiling(lubridate$time_length(lubridate$interval(min(df_country$date, na.rm = TRUE),max(df_country$date, na.rm = TRUE)), "months")) <= 24, 3, 6), " months")),
+                           labels = ifelse(lubridate$month(breaks_6mo) == 1 | (lubridate$month(breaks_6mo) == 7 & any(!(lubridate$month(breaks_6mo) %in% c(1, 7)))),
                                            format(breaks_6mo, "%b\n%Y"),
                                            format(breaks_6mo, "%b\n")),
                            expand = c(0.01, 0)) +
       ggplot2$scale_y_continuous(labels = scales$comma) +
-      ggplot2$expand_limits(y = max(df_country$cholera_cases, na.rm = TRUE) * 1.1) +
+      ggplot2$expand_limits(y = max(df_country$cholera_cases, na.rm = TRUE) * 1.1,
+                            x = max(df_country$date, na.rm = TRUE) + months(3)) +
       ggplot2$geom_text(
         data = subset(df_country, alert == TRUE & date == row$last_watch_alert_new),
         ggplot2$aes(
@@ -108,13 +109,14 @@ purrr$walk2(merged$iso3, seq_len(nrow(merged)), function(country, i) {
       ) +
       ggplot2$scale_x_date(breaks = breaks_6mo <- seq(from = lubridate$floor_date(min(df_country$date, na.rm = TRUE), "year"),
                                                       to = lubridate$ceiling_date(max(df_country$date, na.rm = TRUE), "month"),
-                                                      by = "6 months"),
-                           labels = ifelse(lubridate$month(breaks_6mo) == 1,
+                                                      by = paste0(ifelse(ceiling(lubridate$time_length(lubridate$interval(min(df_country$date, na.rm = TRUE),max(df_country$date, na.rm = TRUE)), "months")) <= 24, 3, 6), " months")),
+                           labels = ifelse(lubridate$month(breaks_6mo) == 1 | (lubridate$month(breaks_6mo) == 7 & any(!(lubridate$month(breaks_6mo) %in% c(1, 7)))),
                                            format(breaks_6mo, "%b\n%Y"),
                                            format(breaks_6mo, "%b\n")),
                            expand = c(0.01, 0)) +
       ggplot2$scale_y_continuous(labels = scales$comma) +
-      ggplot2$expand_limits(y = max(df_country$cholera_cases, na.rm = TRUE) * 1.1) +
+      ggplot2$expand_limits(y = max(df_country$cholera_cases, na.rm = TRUE) * 1.1,
+                            x = max(df_country$date, na.rm = TRUE) + months(3)) +
       ggplot2$geom_text(
         data = subset(df_country, alert_level == "p99" & date == row$last_warning_alert_new),
         ggplot2$aes(
