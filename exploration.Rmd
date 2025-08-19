@@ -1,7 +1,9 @@
 ---
 title: "Cholera Trigger Analysis"
 date: "`r Sys.Date()`"
-output: html_notebook
+output:
+  html_document:
+    df_print: paged
 ---
 
 This document contains analysis used to create an alert system using the WHO bulletins for cholera. It is done by country and checks for common indicators of an uptick in cases.
@@ -548,36 +550,63 @@ ggplot2$ggplot(df_3_aggregated, ggplot2$aes(x = year, y = iso3, fill = num_alert
 ```
 
 ## Methodology 4
-Create a 3-year rolling average of weekly increases with a minimum of 500 cases. 
+Create a 3-year rolling average of weekly caseload with a minimum of 500 cases. 
 
 ```{r rolling-average, echo=FALSE, warning=FALSE}
+# df_4 <- df_prepped |>
+#   dplyr$group_by(iso3) |>
+#   dplyr$group_modify(~ {
+#     df <- .x
+#     df$weekly_increase <- dplyr$if_else(
+#       df$prev_date_diff <= 28,
+#       df$cholera_cases - dplyr$lag(df$cholera_cases, 1),
+#       0
+#     )
+#     
+#     valid_cases <- dplyr$if_else(df$weekly_increase > 0, df$weekly_increase, NA_real_)
+#     n_valid <- sum(!is.na(valid_cases))
+#     
+#     if (n_valid >= 156) {
+#       roll <- zoo$rollmean(valid_cases, k = 156, fill = NA, align = "right")
+#       first_val <- roll[which(!is.na(roll))[1]]
+#       roll[is.na(roll)] <- first_val
+#     } else {
+#       roll <- rep(mean(valid_cases, na.rm = TRUE), length(valid_cases))
+#     }
+#     
+#     df$roll_3yr <- roll
+#     df$alert <- df$weekly_increase >= df$roll_3yr & df$weekly_increase >= min_cases
+#     df$year <- lubridate$year(df$date)
+#     df
+#   }) |>
+#   dplyr$ungroup()
 df_4 <- df_prepped |>
   dplyr$group_by(iso3) |>
   dplyr$group_modify(~ {
     df <- .x
-    df$weekly_increase <- dplyr$if_else(
-      df$prev_date_diff <= 28,
-      df$cholera_cases - dplyr$lag(df$cholera_cases, 1),
-      0
-    )
-    
-    valid_cases <- dplyr$if_else(df$weekly_increase > 0, df$weekly_increase, NA_real_)
+    # Use absolute cases as the signal
+    signal <- df$cholera_cases
+    # Keep only non-negative values; others -> NA
+    valid_cases <- dplyr$if_else(signal >= 0, signal, NA_real_)
     n_valid <- sum(!is.na(valid_cases))
-    
+    # 3-year (~156 weeks) rolling mean of absolute cases
     if (n_valid >= 156) {
       roll <- zoo$rollmean(valid_cases, k = 156, fill = NA, align = "right")
+      # forward-fill initial NAs with first non-NA rolling value
       first_val <- roll[which(!is.na(roll))[1]]
       roll[is.na(roll)] <- first_val
     } else {
+      # fallback: constant baseline = mean of available cases
       roll <- rep(mean(valid_cases, na.rm = TRUE), length(valid_cases))
     }
-    
     df$roll_3yr <- roll
-    df$alert <- df$weekly_increase >= df$roll_3yr & df$weekly_increase >= min_cases
+    # Alert when current cases exceed rolling baseline and a minimum absolute threshold
+    df$alert <- df$cholera_cases >= df$roll_3yr & df$cholera_cases >= min_cases
     df$year <- lubridate$year(df$date)
     df
   }) |>
   dplyr$ungroup()
+
 
 # Aggregating the data for CERF allocation windows
 df_4_aggregated <- df_4 |>
@@ -601,28 +630,34 @@ ggplot2$ggplot(df_4_aggregated, ggplot2$aes(x = year, y = iso3, fill = num_alert
     fill = "Number of Alerts",
     caption = "Green outlines indicate years with a CERF allocation"
   ) +
-  ggplot2$scale_fill_gradient(low = "white", high = "red", limits = c(0, 12),
+  ggplot2$scale_fill_gradient(low = "white", high = "red", limits = c(0, 55),
                               breaks = function(x) x[x %% 1 == 0],
                               labels = function(x) x[x %% 1 == 0]) +
   ggplot2$scale_y_discrete(limits = rev(levels(factor(df_4_aggregated$iso3)))) +
   ggplot2$scale_x_continuous(breaks = unique(df_4_aggregated$year))
 ```
-Timelines for Method 4.
-Challenges with method 4:
+### Timelines for Method 4.
+Challenges with the Rolling Average Method (3-year baseline)
 
- - We do not always have adequate data over 3 years for most countries and it is not always consecutive weeks. There are gaps in the weeks.
- - The rolling average results in multiple alerts even when not needed.
+ 1. Data Gaps and Inconsistencies
+  - Many countries lack continuous weekly data over 3 years.
+  - Missing weeks break the continuity, making the rolling mean less reliable.
+ 2. Short Time Series
+  - For countries with only 1–2 years of data, the method results in a simple mean value.
+ 3. Small spikes in cases can exceed the rolling mean, generating alerts even when there is no meaningful outbreak.
+ 4. Multiple Alerts for the Same Event
+ 
 
 ```{r rolling-average-tl, echo=FALSE, warning=FALSE}
 purrr$walk(iso3_to_plot, ~ {
   cerf_dates <- cerf_cholera$final_date[cerf_cholera$countryCode == .x]
   df_country <- df_4[df_4$iso3 == .x, ]
   print({
-    ggplot2$ggplot(df_country, ggplot2$aes(x = date, y = weekly_increase)) +
+    ggplot2$ggplot(df_country, ggplot2$aes(x = date, y = cholera_cases)) +
       ggplot2$geom_line(size = 0.6, color = "grey40") +
       ggplot2$geom_line(ggplot2$aes(y = roll_3yr), color = "green4", size = 0.5, na.rm = TRUE) +
       ggplot2$geom_point(data = subset(df_country, alert == TRUE),
-                         ggplot2$aes(x = date, y = weekly_increase),
+                         ggplot2$aes(x = date, y = cholera_cases),
                          color = "orange", size = 1.8) +
       ggplot2$geom_vline(xintercept = as.numeric(cerf_dates), color = "green", size = 0.7) +
       ggplot2$geom_hline(yintercept = 500, color = "darkblue", linetype = "dashed", show.legend = FALSE) +
@@ -637,7 +672,7 @@ purrr$walk(iso3_to_plot, ~ {
         ● Orange Dot: Rolling average alert
         ● Green line: CERF allocation date
         ● Dashed line: 500 cases threshold
-        ● Green curve: 3-year rolling average"
+        ● Green curve: 3-year rolling average OR average of available years"
       ) +
       gghdx$gghdx() +
       ggplot2$theme(
@@ -861,7 +896,7 @@ last_warning <- df_1 |>
 last_alerts <- dplyr$full_join(last_watch, last_warning, by = "iso3")
 
 if (!dir.exists("monitoring")) dir.create("monitoring")
-readr$write_csv(last_alerts, file = "monitoring/last_alerts.csv")
+#readr$write_csv(last_alerts, file = "monitoring/last_alerts.csv")
 
 ```
 
