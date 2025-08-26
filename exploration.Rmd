@@ -9,6 +9,9 @@ output:
     code_folding: show
     number_sections: false
     theme: cosmo
+  html_document:
+    toc: true
+    df_print: paged
 ---
 
 ## Introduction
@@ -557,36 +560,147 @@ ggplot2$ggplot(df_3_aggregated, ggplot2$aes(x = year, y = iso3, fill = num_alert
 ```
 
 ## Methodology 4
-Create a 3-year rolling average of weekly caseload with a minimum of 500 cases. 
+Create a 3-year rolling average of weekly caseload with a minimum of 500 new cases. 
 
 ```{r rolling-average, echo=FALSE, warning=FALSE}
-# df_4 <- df_prepped |>
-#   dplyr$group_by(iso3) |>
-#   dplyr$group_modify(~ {
-#     df <- .x
-#     df$weekly_increase <- dplyr$if_else(
-#       df$prev_date_diff <= 28,
-#       df$cholera_cases - dplyr$lag(df$cholera_cases, 1),
-#       0
-#     )
-#     
-#     valid_cases <- dplyr$if_else(df$weekly_increase > 0, df$weekly_increase, NA_real_)
-#     n_valid <- sum(!is.na(valid_cases))
-#     
-#     if (n_valid >= 156) {
-#       roll <- zoo$rollmean(valid_cases, k = 156, fill = NA, align = "right")
-#       first_val <- roll[which(!is.na(roll))[1]]
-#       roll[is.na(roll)] <- first_val
-#     } else {
-#       roll <- rep(mean(valid_cases, na.rm = TRUE), length(valid_cases))
-#     }
-#     
-#     df$roll_3yr <- roll
-#     df$alert <- df$weekly_increase >= df$roll_3yr & df$weekly_increase >= min_cases
-#     df$year <- lubridate$year(df$date)
-#     df
-#   }) |>
-#   dplyr$ungroup()
+ df_4 <- df_prepped |>
+   dplyr$group_by(iso3) |>
+   dplyr$group_modify(~ {
+     df <- .x
+     df$weekly_increase <- dplyr$if_else(
+       df$prev_date_diff <= 28,
+       df$cholera_cases - dplyr$lag(df$cholera_cases, 1),
+       0
+     )
+     
+     valid_cases <- dplyr$if_else(df$weekly_increase > 0, df$weekly_increase, NA_real_)
+     n_valid <- sum(!is.na(valid_cases))
+     
+     if (n_valid >= 156) {
+       roll <- zoo$rollmean(valid_cases, k = 156, fill = NA, align = "right")
+       first_val <- roll[which(!is.na(roll))[1]]
+       roll[is.na(roll)] <- first_val
+     } else {
+       roll <- rep(mean(valid_cases, na.rm = TRUE), length(valid_cases))
+     }
+     
+     df$roll_3yr <- roll
+     df$alert <- df$weekly_increase >= df$roll_3yr & df$weekly_increase >= min_cases
+     df$year <- lubridate$year(df$date)
+     df
+   }) |>
+   dplyr$ungroup()
+#df_4 <- df_prepped |>
+#  dplyr$group_by(iso3) |>
+#  dplyr$group_modify(~ {
+#    df <- .x
+#    # Use absolute cases as the signal
+#    signal <- df$cholera_cases
+#    # Keep only non-negative values; others -> NA
+#    valid_cases <- dplyr$if_else(signal >= 0, signal, NA_real_)
+#    n_valid <- sum(!is.na(valid_cases))
+#    # 3-year (~156 weeks) rolling mean of absolute cases
+#    if (n_valid >= 156) {
+#      roll <- zoo$rollmean(valid_cases, k = 156, fill = NA, align = "right")
+#      # forward-fill initial NAs with first non-NA rolling value
+#      first_val <- roll[which(!is.na(roll))[1]]
+#      roll[is.na(roll)] <- first_val
+#    } else {
+#      # fallback: constant baseline = mean of available cases
+#      roll <- rep(mean(valid_cases, na.rm = TRUE), length(valid_cases))
+#    }
+#    df$roll_3yr <- roll
+#    # Alert when current cases exceed rolling baseline and a minimum absolute threshold
+#    df$alert <- df$cholera_cases >= df$roll_3yr & df$cholera_cases >= min_cases
+#    df$year <- lubridate$year(df$date)
+#    df
+#  }) |>
+#  dplyr$ungroup()
+
+
+# Aggregating the data for CERF allocation windows
+df_4_aggregated <- df_4 |>
+  dplyr$count(iso3, year, alert, name = "num_alerts") |>
+  dplyr$filter(alert)
+
+ggplot2$ggplot(df_4_aggregated, ggplot2$aes(x = year, y = iso3, fill = num_alerts)) +
+  ggplot2$geom_tile() +
+  ggplot2$geom_tile(
+    data = allocation_years,
+    mapping = ggplot2$aes(x = Year, y = iso3),
+    fill = NA,
+    color = "darkgreen",
+    linewidth = 0.55
+  ) +
+  ggplot2$geom_text(ggplot2$aes(label = num_alerts), color = "black", size = 3) +
+  ggplot2$labs(
+    title = "Number of Alerts by Country and Year",
+    x = "Year",
+    y = "Country",
+    fill = "Number of Alerts",
+    caption = "Green outlines indicate years with a CERF allocation"
+  ) +
+  ggplot2$scale_fill_gradient(low = "white", high = "red", limits = c(0, 15),
+                              breaks = function(x) x[x %% 1 == 0],
+                              labels = function(x) x[x %% 1 == 0]) +
+  ggplot2$scale_y_discrete(limits = rev(levels(factor(df_4_aggregated$iso3)))) +
+  ggplot2$scale_x_continuous(breaks = unique(df_4_aggregated$year))
+```
+### Timelines for Method 4.
+Challenges with the Rolling Average Method (3-year baseline)
+
+ 1. Data Gaps and Inconsistencies
+  - Many countries lack continuous weekly data over 3 years.
+  - Missing weeks break the continuity, making the rolling mean less reliable.
+ 2. Short Time Series
+  - For countries with only 1–2 years of data, the method results in a simple mean value.
+ 3. Small spikes in cases can exceed the rolling mean, generating alerts even when there is no meaningful outbreak.
+ 4. Multiple Alerts for the Same Event
+ 
+#### Timeline using the weekly increase in cases
+
+```{r rolling-average-tl, echo=FALSE, warning=FALSE}
+purrr$walk(iso3_to_plot, ~ {
+  cerf_dates <- cerf_cholera$final_date[cerf_cholera$countryCode == .x]
+  df_country <- df_4[df_4$iso3 == .x, ]
+  print({
+    ggplot2$ggplot(df_country, ggplot2$aes(x = date, y = weekly_increase)) +
+      ggplot2$geom_line(size = 0.6, color = "grey40") +
+      ggplot2$geom_line(ggplot2$aes(y = roll_3yr), color = "green4", size = 0.5, na.rm = TRUE) +
+      ggplot2$geom_point(data = subset(df_country, alert == TRUE),
+                         ggplot2$aes(x = date, y = weekly_increase),
+                         color = "orange", size = 1.8) +
+      ggplot2$geom_vline(xintercept = as.numeric(cerf_dates), color = "green", size = 0.7) +
+      ggplot2$geom_hline(yintercept = 500, color = "darkblue", linetype = "dashed", show.legend = FALSE) +
+      ggplot2$annotate("text", x = as.Date("2025-08-01"), y = 500, label = "500",
+                       color = "darkblue", hjust = 0, vjust = -0.5) +
+      ggplot2$scale_x_date(date_breaks = "6 months", date_labels = "%b %Y") +
+      ggplot2$labs(
+        title = paste("Weekly Cholera Case Increase –", .x),
+        x = "Date",
+        y = "Weekly Increase in Cases",
+        caption ="
+        ● Orange Dot: Rolling average alert
+        ● Green line: CERF allocation date
+        ● Dashed line: 500 cases threshold
+        ● Green curve: 3-year rolling average OR average of available years"
+      ) +
+      gghdx$gghdx() +
+      ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold", size = 14),
+        axis.title = ggplot2$element_text(size = 11),
+        axis.text = ggplot2$element_text(size = 10),
+        plot.caption = ggplot2$element_text(size = 9, hjust = 0),
+        panel.grid.minor = ggplot2$element_blank()
+      )
+  })
+})
+
+```
+
+#### Timeline using the cumulative cases
+
+```{r rolling-average-tl-cases, echo=FALSE, warning=FALSE}
 df_4 <- df_prepped |>
   dplyr$group_by(iso3) |>
   dplyr$group_modify(~ {
@@ -614,48 +728,6 @@ df_4 <- df_prepped |>
   }) |>
   dplyr$ungroup()
 
-
-# Aggregating the data for CERF allocation windows
-df_4_aggregated <- df_4 |>
-  dplyr$count(iso3, year, alert, name = "num_alerts") |>
-  dplyr$filter(alert)
-
-ggplot2$ggplot(df_4_aggregated, ggplot2$aes(x = year, y = iso3, fill = num_alerts)) +
-  ggplot2$geom_tile() +
-  ggplot2$geom_tile(
-    data = allocation_years,
-    mapping = ggplot2$aes(x = Year, y = iso3),
-    fill = NA,
-    color = "darkgreen",
-    linewidth = 0.55
-  ) +
-  ggplot2$geom_text(ggplot2$aes(label = num_alerts), color = "black", size = 3) +
-  ggplot2$labs(
-    title = "Number of Alerts by Country and Year",
-    x = "Year",
-    y = "Country",
-    fill = "Number of Alerts",
-    caption = "Green outlines indicate years with a CERF allocation"
-  ) +
-  ggplot2$scale_fill_gradient(low = "white", high = "red", limits = c(0, 55),
-                              breaks = function(x) x[x %% 1 == 0],
-                              labels = function(x) x[x %% 1 == 0]) +
-  ggplot2$scale_y_discrete(limits = rev(levels(factor(df_4_aggregated$iso3)))) +
-  ggplot2$scale_x_continuous(breaks = unique(df_4_aggregated$year))
-```
-### Timelines for Method 4.
-Challenges with the Rolling Average Method (3-year baseline)
-
- 1. Data Gaps and Inconsistencies
-  - Many countries lack continuous weekly data over 3 years.
-  - Missing weeks break the continuity, making the rolling mean less reliable.
- 2. Short Time Series
-  - For countries with only 1–2 years of data, the method results in a simple mean value.
- 3. Small spikes in cases can exceed the rolling mean, generating alerts even when there is no meaningful outbreak.
- 4. Multiple Alerts for the Same Event
- 
-
-```{r rolling-average-tl, echo=FALSE, warning=FALSE}
 purrr$walk(iso3_to_plot, ~ {
   cerf_dates <- cerf_cholera$final_date[cerf_cholera$countryCode == .x]
   df_country <- df_4[df_4$iso3 == .x, ]
@@ -672,9 +744,9 @@ purrr$walk(iso3_to_plot, ~ {
                        color = "darkblue", hjust = 0, vjust = -0.5) +
       ggplot2$scale_x_date(date_breaks = "6 months", date_labels = "%b %Y") +
       ggplot2$labs(
-        title = paste("Weekly Cholera Case Increase –", .x),
+        title = paste("Cholera Cases –", .x),
         x = "Date",
-        y = "Weekly Increase in Cases",
+        y = "Cases",
         caption ="
         ● Orange Dot: Rolling average alert
         ● Green line: CERF allocation date
